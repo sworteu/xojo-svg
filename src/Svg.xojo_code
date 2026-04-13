@@ -156,10 +156,7 @@ Protected Module SVG
 		        //parms = Mid(transform, openBracket + 1, closeBracket - openBracket - 1)
 		        parms = transform.Middle(openBracket + 1, closeBracket - openBracket - 1)
 		        parms = parms.ReplaceAll(",", " ")
-		        //while parms.InStr(0, "  ") > 0 
-		        while parms.IndexOf(0, "  ") >= 0
-		          parms = parms.ReplaceAll("  ", " ")
-		        wend
+		        parms = collapseSpaces(parms)
 		        strArr = parms.Split(" ")
 		        
 		        select case functionName
@@ -238,6 +235,20 @@ Protected Module SVG
 		  
 		  
 		  'return resultMatrix
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Function collapseSpaces(value As String) As String
+		  Var result As String
+		  
+		  result = value
+		  while result.IndexOf("  ") >= 0
+		    result = result.ReplaceAll("  ", " ")
+		  wend
+		  
+		  return result
+		  
 		End Function
 	#tag EndMethod
 
@@ -632,11 +643,18 @@ Protected Module SVG
 		  Var commaPos As Integer
 		  
 		  commaPos = data.IndexOf(0, ",")
-		  if commaPos >= 0 then
-		    imageData = DecodeBase64(data.Right(data.Length - commaPos))
-		    image = Picture.FromData(imageData)
-		    alphaImage = new Picture(image.Width, image.Height)
-		    alphaImage.Graphics.DrawPicture image, 0, 0
+		  if (commaPos >= 0) and (commaPos < data.Length - 1) then
+		    try
+		      imageData = DecodeBase64(data.Middle(commaPos + 1))
+		      image = Picture.FromData(imageData)
+		    catch e As RuntimeException
+		      image = nil
+		    end try
+		    
+		    if image <> nil then
+		      alphaImage = new Picture(image.Width, image.Height)
+		      alphaImage.Graphics.DrawPicture image, 0, 0
+		    end if
 		  end if
 		  
 		  return alphaImage
@@ -818,8 +836,12 @@ Protected Module SVG
 		  select case typeStr
 		    
 		  case "", "text/css"
-		    styleData = node.FirstChild.Value
-		    loadCSS(styleData)
+		    if node.FirstChild <> nil then
+		      styleData = node.FirstChild.Value
+		      if styleData <> "" then
+		        loadCSS(styleData)
+		      end if
+		    end if
 		    
 		  case else
 		    'break
@@ -2677,9 +2699,7 @@ Protected Module SVG
 		  
 		  if viewBox <> "" then
 		    viewBox = viewBox.ReplaceAll(",", " ")
-		    while viewBox.IndexOf("  ") >= 0
-		      viewBox = viewBox.ReplaceAll("  ", " ")
-		    wend
+		    viewBox = collapseSpaces(viewBox)
 		    
 		    viewBoxArr = viewBox.Split(" ")
 		    if viewBoxArr.LastIndex >= 3 then
@@ -2841,9 +2861,7 @@ Protected Module SVG
 		    
 		    textStr = textStr.ReplaceLineEndings(" ")
 		    textStr = textStr.ReplaceAll(Chr(9), " ")
-		    while textStr.IndexOf("  ") >= 0
-		      textStr = textStr.ReplaceAll("  ", " ")
-		    wend
+		    textStr = collapseSpaces(textStr)
 		    if not hasDrawnText then
 		      while (textStr.Length > 0) and (textStr.Left(1) = " ")
 		        textStr = textStr.Middle(1)
